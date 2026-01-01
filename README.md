@@ -34,3 +34,9 @@ production-grade practices:
 
 Core backend architecture and security foundations are implemented.
 Additional features and refinements are ongoing.
+
+The following features are planned for the next development sprint:
+* **Caching & Background Tasks:** Integration of **Redis** and **Celery** for email queues and API response caching.
+* **Real-time updates:** WebSockets implementation for task notifications.
+* **CI/CD:** GitHub Actions workflow for automated testing.
+
