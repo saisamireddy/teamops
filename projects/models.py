@@ -2,6 +2,8 @@ from django.db import models
 from accounts.models import User
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
+from django.apps import apps
+from tasks.models import Task
 
 class Project(models.Model):
     name= models.CharField(max_length=225)
@@ -37,3 +39,17 @@ def enforce_owner_membership(sender, instance, action, reverse, **kwargs):
         # This checks the DB directly without loading a list of users
         if instance.owner_id and not instance.members.filter(id=instance.owner_id).exists():
             instance.members.add(instance.owner)
+
+@receiver(m2m_changed, sender=Project.members.through)
+def handle_member_removal(sender, instance, action, pk_set, reverse, **kwargs):
+    # We only care when members are removed from a project
+    if reverse:
+        return
+
+    if action == "post_remove" and pk_set:
+        # Unassign tasks belonging to removed users
+        Task.objects.filter(
+            project=instance,
+            assigned_to_id__in=pk_set,
+            # is_deleted=False
+        ).update(assigned_to=None)
