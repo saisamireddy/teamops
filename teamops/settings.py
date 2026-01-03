@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     "accounts",
     "projects",
     "tasks",
-    "audit",
+    # "audit",
+    "audit.apps.AuditConfig",
 ]
 
 MIDDLEWARE = [
