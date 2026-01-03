@@ -5,10 +5,11 @@ from .models import AuditLog
 class AuditLogAdmin(admin.ModelAdmin):
     list_display = (
         "created_at", "actor", "action",
-        "model_name", "object_id", "ip_address",
+        "content_type", "object_id", "ip_address",
     )
-    list_filter = ("action", "model_name")
+    list_filter = ("action", "content_type")
     search_fields = ("object_id",)
+    list_select_related = ("content_type", "actor")
     readonly_fields = [f.name for f in AuditLog._meta.fields]
 
     def has_add_permission(self, request):

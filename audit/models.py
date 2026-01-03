@@ -1,5 +1,6 @@
 from django.db import models
 from accounts.models import User
+from django.contrib.contenttypes.models import ContentType
 
 class AuditLog(models.Model):
     ACTION_CHOICES = (
@@ -19,7 +20,9 @@ class AuditLog(models.Model):
 
     action = models.CharField(max_length=10, choices=ACTION_CHOICES)
 
-    model_name = models.CharField(max_length=100)
+    content_type = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE
+    )
     object_id = models.CharField(max_length=50)
 
     changes = models.JSONField(null=True, blank=True)
@@ -29,7 +32,13 @@ class AuditLog(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["content_type", "object_id"]),
+            models.Index(fields=["created_at"]),
+        ]
+
     def __str__(self):
-        return f"{self.action} {self.model_name}({self.object_id})"
+        return f"{self.action} {self.content_type}({self.object_id})"
 
 
