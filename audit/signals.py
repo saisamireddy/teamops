@@ -11,6 +11,7 @@ from django.utils.functional import Promise
 from audit.models import AuditLog
 from audit.middleware import get_current_user, get_request_meta
 from tasks.models import Task
+from audit.utils import is_audit_enabled, disable_audit
 
 IGNORED_FIELDS = {"updated_at", "created_at", "_state"}
 
@@ -86,23 +87,24 @@ def compute_diff(old, new):
 
 @receiver(post_save, sender=Task)
 def audit_task_change(sender, instance, created, **kwargs):
-    # 🔒 Self-exclusion
-    if isinstance(instance, AuditLog):
+    # 🔒 Recursion guard
+    if not is_audit_enabled():
         return
 
     user = get_current_user()
     meta = get_request_meta()
 
     def write_log(action, changes=None):
-        AuditLog.objects.create(
-            actor=user if user and user.is_authenticated else None,
-            action=action,
-            content_type=ContentType.objects.get_for_model(instance),
-            object_id=str(instance.pk),
-            changes=changes,
-            ip_address=meta.get("ip"),
-            user_agent=meta.get("ua"),
-        )
+        with disable_audit():
+            AuditLog.objects.create(
+                actor=user if user and user.is_authenticated else None,
+                action=action,
+                content_type=ContentType.objects.get_for_model(instance),
+                object_id=str(instance.pk),
+                changes=changes,
+                ip_address=meta.get("ip"),
+                user_agent=meta.get("ua"),
+            )
 
     #  Only log AFTER commit
     def on_commit():
