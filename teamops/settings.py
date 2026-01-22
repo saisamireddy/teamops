@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "django_filters",
+    "channels",
 
     # Local apps
     "accounts",
@@ -81,6 +82,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'teamops.wsgi.application'
+ASGI_APPLICATION = "teamops.asgi.application"
+
 
 
 # Database
@@ -123,6 +126,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
 }
 
 # Internationalization
