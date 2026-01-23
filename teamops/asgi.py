@@ -10,11 +10,14 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
 import os
 
 from django.core.asgi import get_asgi_application
-from channels.routing import ProtocolTypeRouter
-
+from channels.routing import ProtocolTypeRouter,  URLRouter
+import teamops.routing
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "teamops.settings")
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
+    "websocket": URLRouter(
+        teamops.routing.websocket_urlpatterns
+    ),
 })
 
