@@ -1,42 +1,69 @@
 # TeamOps 🚀
 
-TeamOps is a work-in-progress team collaboration and task management platform.
+TeamOps is a backend-focused team collaboration and task management platform
+designed with production-grade architecture and security principles.
 
-This repository reflects active development and is intended to showcase
-real-world backend engineering practices.
+The project emphasizes:
+- clean domain modeling
+- strict access control
+- auditability
+- real-time, authorized communication between users
+
+The frontend is intentionally minimal; the primary focus is building
+robust backend infrastructure similar to real-world internal tools.
 
 ---
 
 ##  Architecture
 The following diagram illustrates the  architecture of TeamOps
 ![TeamOps Architecture](docs/architecture.png)
-## Tech Stack
-- Backend: Django, Django REST Framework
-- Database: PostgresSQL
-- Authentication: Role-based access / JWT (planned)
+## Architecture Highlights
 
----
+- **Django + PostgresSQL** backend
+- **JWT-based authentication** (REST & WebSockets share the same auth system)
+- **Role-aware, object-level access control**
+- **Queryset-level data isolation**
+- **Soft delete with controlled visibility**
+- **Audit logging with field-level diffs**
+- **ASGI-based real-time communication using Django Channels and Redis**
+- **Strict Git workflow with feature branches and PR-based merges**
 
-## Implemented Backend Capabilities
+## Real-Time Features (WebSockets)
 
-The following backend capabilities are fully implemented and aligned with
-production-grade practices:
+TeamOps supports real-time updates using **Django Channels**, **ASGI**, and **Redis**.
 
-- JWT-based authentication
-- Role-based permission system
-- Object-level access control
-- Queryset-level data protection
-- Soft delete mechanism with controlled visibility
-- Secure and correctly scoped Django admin access
+### Authentication & Authorization
+- WebSocket connections require **JWT authentication**
+- Anonymous connections are rejected at handshake
+- `scope["user"]` behaves the same as `request.user` in REST APIs
+
+### Project-Based Isolation
+- Each project has its own WebSocket group
+- Only project members can connect and receive events
+- Cross-project data leakage is strictly prevented
+
+### Real-Time Task Events
+Task lifecycle events are broadcast in real time to authorized project members:
+- Task creation
+- Task updates
+- Soft deletion
+- Restore events
+
+All real-time events are **server-authoritative** and emitted only from backend
+domain events — clients cannot publish arbitrary messages.
 
 ## Project Status
-🚧 Actively under development
 
-Core backend architecture and security foundations are implemented.
-Additional features and refinements are ongoing.
+This project is actively under development.
 
-The following features are planned for the next development sprint:
-* **Caching & Background Tasks:** Integration of **Redis** and **Celery** for email queues and API response caching.
-* **Real-time updates:** WebSockets implementation for task notifications.
-* **CI/CD:** GitHub Actions workflow for automated testing.
+Recent milestones:
+- Production-grade audit logging
+- JWT-authenticated WebSockets
+- Project-scoped real-time communication
+- Real-time task event broadcasting
+
+Upcoming work includes:
+- Event reliability & delivery guarantees
+- Fine-grained real-time permissions
+- Activity feeds and live dashboards
 
