@@ -60,6 +60,9 @@ class ProjectTaskConsumer(AsyncWebsocketConsumer):
             "project": self.project_group
         }))
 
+    async def task_event(self, event):
+        await self.send(text_data=json.dumps(event["payload"]))
+
     @database_sync_to_async
     def is_project_member(self, user, project_id):
         return Project.objects.filter(
