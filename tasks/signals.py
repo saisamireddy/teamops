@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-
+from django.db import transaction
 from tasks.models import Task
 from tasks.realtime import broadcast_task_event
 
@@ -25,4 +25,6 @@ def task_realtime_handler(sender, instance, created, **kwargs):
         },
     }
 
-    broadcast_task_event(instance.project_id, payload)
+    transaction.on_commit(
+        lambda: broadcast_task_event(instance.project_id, payload)
+    )
