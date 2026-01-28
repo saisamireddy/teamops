@@ -41,6 +41,7 @@ def task_realtime_handler(sender, instance, created, **kwargs):
     payload = {
         "type": "task.event",
         "action": action,
+        "project_id": instance.project_id,
         "task": {
             "id": instance.id,
             "title": instance.title,

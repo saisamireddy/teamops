@@ -61,8 +61,11 @@ class ProjectTaskConsumer(AsyncWebsocketConsumer):
         }))
 
     async def task_event(self, event):
-        event.pop("type", None)
-        await self.send(text_data=json.dumps(event))
+        try:
+            event.pop("type", None)
+            await self.send(text_data=json.dumps(event))
+        except Exception as exc:
+            print("WS send failed:", exc)
 
     @database_sync_to_async
     def is_project_member(self, user, project_id):
