@@ -61,7 +61,8 @@ class ProjectTaskConsumer(AsyncWebsocketConsumer):
         }))
 
     async def task_event(self, event):
-        await self.send(text_data=json.dumps(event["payload"]))
+        event.pop("type", None)
+        await self.send(text_data=json.dumps(event))
 
     @database_sync_to_async
     def is_project_member(self, user, project_id):

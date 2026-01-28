@@ -1,29 +1,40 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import pre_save,post_save
 from django.dispatch import receiver
 from django.db import transaction
 from tasks.models import Task
 from tasks.realtime import broadcast_task_event
 
 
+
+@receiver(pre_save, sender=Task)
+def task_pre_save_handler(sender, instance, **kwargs):
+    """
+    Store previous is_deleted value on the instance
+    so post_save can detect transitions correctly.
+    """
+    if not instance.pk:
+        instance._old_is_deleted = None
+        return
+
+    try:
+        old = Task.objects.get(pk=instance.pk)
+        instance._old_is_deleted = old.is_deleted
+    except Task.DoesNotExist:
+        instance._old_is_deleted = None
+
+
 @receiver(post_save, sender=Task)
 def task_realtime_handler(sender, instance, created, **kwargs):
     # Determine previous state safely
-    old_is_deleted = None
-
-    if instance.pk:
-        try:
-            old = Task.objects.get(pk=instance.pk)
-            old_is_deleted = old.is_deleted
-        except Task.DoesNotExist:
-            pass
+    old_is_deleted = getattr(instance, "_old_is_deleted", None)
 
     # Decide action
     if created:
         action = "CREATED"
-    elif old_is_deleted and not instance.is_deleted:
-        action = "RESTORED"
-    elif not old_is_deleted and instance.is_deleted:
+    elif old_is_deleted is False and instance.is_deleted is True:
         action = "DELETED"
+    elif old_is_deleted is True and instance.is_deleted is False:
+        action = "RESTORED"
     else:
         action = "UPDATED"
 
