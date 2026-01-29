@@ -40,14 +40,16 @@ def task_realtime_handler(sender, instance, created, **kwargs):
 
     payload = {
         "type": "task.event",
+        "entity": "task",
         "action": action,
         "project_id": instance.project_id,
-        "task": {
+        "data": {
             "id": instance.id,
             "title": instance.title,
             "status": instance.status,
             "assigned_to": instance.assigned_to.username if instance.assigned_to else None,
             "is_deleted": instance.is_deleted,
+            "updated_at": instance.updated_at.isoformat(),
         },
     }
 
