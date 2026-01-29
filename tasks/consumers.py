@@ -61,6 +61,19 @@ class ProjectTaskConsumer(AsyncWebsocketConsumer):
         }))
 
     async def task_event(self, event):
+
+        user = self.scope["user"]
+        project_id = event.get("project_id")
+
+        #  Re-check permission on every event
+        is_member = await database_sync_to_async(
+            Project.objects.filter(id=project_id, members=user).exists)()
+
+        if not is_member:
+            # User lost access → close socket immediately
+            await self.close()
+            return
+
         try:
             event.pop("type", None)
             await self.send(text_data=json.dumps(event))
