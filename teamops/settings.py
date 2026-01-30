@@ -15,7 +15,7 @@ import os
 from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
 from datetime import timedelta
-from datetime import timedelta
+
 
 load_dotenv()
 
