@@ -13,6 +13,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
+from datetime import timedelta
+
 
 load_dotenv()
 
@@ -46,6 +49,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_filters",
     "channels",
+    "corsheaders",
 
     # Local apps
     "accounts",
@@ -58,6 +62,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -86,7 +91,25 @@ TEMPLATES = [
 WSGI_APPLICATION = 'teamops.wsgi.application'
 ASGI_APPLICATION = "teamops.asgi.application"
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+]
 
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'authorization',
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+
+    "AUTH_HEADER_TYPES": ("Bearer",),
+}
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
