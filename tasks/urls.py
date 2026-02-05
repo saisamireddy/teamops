@@ -4,7 +4,7 @@ from .views import TaskViewSet, ProjectTaskListCreateView
 from django.urls import path
 
 router = DefaultRouter()
-router.register(r"", TaskViewSet, basename="tasks")
+router.register(r"tasks", TaskViewSet, basename="tasks")
 
 urlpatterns = [
 

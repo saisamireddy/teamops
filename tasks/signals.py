@@ -46,8 +46,11 @@ def task_realtime_handler(sender, instance, created, **kwargs):
         "data": {
             "id": instance.id,
             "title": instance.title,
+            "description": instance.description,
             "status": instance.status,
-            "assigned_to": instance.assigned_to.username if instance.assigned_to else None,
+            "priority": instance.priority,
+            "assigned_to": instance.assigned_to.id if instance.assigned_to else None,
+            "assigned_username": (instance.assigned_to.username if instance.assigned_to else None),
             "is_deleted": instance.is_deleted,
             "updated_at": instance.updated_at.isoformat(),
         },
