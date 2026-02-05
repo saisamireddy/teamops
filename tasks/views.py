@@ -5,6 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from .models import Task
 from .serializers import TaskSerializer
 from .permissions import IsProjectMember, CanModifyTask
+from projects.models import Project
 
 class TaskViewSet(ModelViewSet):
     serializer_class = TaskSerializer
@@ -50,12 +51,13 @@ class ProjectTaskListCreateView(ListCreateAPIView):
     def perform_create(self, serializer):
         user = self.request.user
         project_id = self.kwargs["project_id"]
+        project = Project.objects.get(id=project_id)
 
         if user.role not in ["ADMIN", "PM"]:
             raise PermissionDenied("You cannot create tasks")
 
         serializer.save(
-            project_id=project_id,
+            project=project,
             created_by=user
         )
 
