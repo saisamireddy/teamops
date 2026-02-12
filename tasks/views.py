@@ -48,7 +48,8 @@ class ProjectTaskListCreateView(ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsProjectMember]
 
     def get_queryset(self):
-        qs = Task.objects.filter(project__members=self.request.user)
+        project_id = self.kwargs.get('project_id')
+        qs = Task.objects.filter(project_id=project_id,project__members=self.request.user)
 
         include_deleted = self.request.query_params.get("deleted")
 
