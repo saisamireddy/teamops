@@ -66,10 +66,19 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
             "bio",
         )
 
+    def validate_avatar(self, file):
+        if file and file.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Avatar max size 5MB")
+        return file
+
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
 
-    def validate_new_password(self, value):
-        validate_password(value)
-        return value
+    def validate(self, data):
+        if data["new_password"] != data["confirm_password"]:
+            raise serializers.ValidationError("Passwords do not match")
+
+        validate_password(data["new_password"])
+        return data
