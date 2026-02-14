@@ -1,93 +1,85 @@
 from django.db.models.signals import pre_save, post_save
+from django.contrib.auth.signals import user_logged_in, user_login_failed
 from django.dispatch import receiver
 from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
-from datetime import date, datetime
-from uuid import UUID
-from decimal import Decimal
-from django.db import models
-from django.utils.functional import Promise
+from django.contrib.auth import get_user_model
 
-from audit.models import AuditLog
-from audit.middleware import get_current_user, get_request_meta
+from .models import AuditLog
+from .utils import (
+    is_audit_enabled, disable_audit,
+    get_current_user, get_request_meta,
+    compute_diff
+)
+
+# --- CONFIGURATION ---
 from tasks.models import Task
-from audit.utils import is_audit_enabled, disable_audit
 
-IGNORED_FIELDS = {"updated_at", "created_at", "_state"}
+User = get_user_model()
 
-@receiver(pre_save, sender=Task)
+# 1. Add User here to track Registration (Create) and Profile Edits (Update)
+AUDITED_MODELS = [Task, User]
+
+
+def register_audit_signals():
+    """Connects signals to all models in AUDITED_MODELS"""
+    for model in AUDITED_MODELS:
+        pre_save.connect(capture_old_state, sender=model)
+        post_save.connect(audit_model_change, sender=model)
+
+
+# --- AUTHENTICATION HANDLERS ---
+
+@receiver(user_logged_in)
+def log_user_login(sender, request, user, **kwargs):
+    if not is_audit_enabled(): return
+    ip = request.META.get("REMOTE_ADDR")
+    ua = request.META.get("HTTP_USER_AGENT")
+
+    with disable_audit():
+        AuditLog.objects.create(
+            actor=user,
+            action="LOGIN",
+            content_type=ContentType.objects.get_for_model(user),
+            object_id=str(user.pk),
+            changes={"status": "Success"},
+            ip_address=ip,
+            user_agent=ua,
+        )
+
+
+@receiver(user_login_failed)
+def log_login_failed(sender, credentials, request, **kwargs):
+    if not is_audit_enabled(): return
+    ip = request.META.get("REMOTE_ADDR")
+    ua = request.META.get("HTTP_USER_AGENT")
+    username = credentials.get("username", "unknown")
+
+    with disable_audit():
+        AuditLog.objects.create(
+            actor=None,
+            action="LOGIN_FAILED",
+            content_type=None,
+            object_id=None,
+            changes={"attempted_username": username},
+            ip_address=ip,
+            user_agent=ua,
+        )
+
+
+# --- DB HANDLERS ---
+
 def capture_old_state(sender, instance, **kwargs):
-    # New object → nothing to compare
     if not instance.pk:
         instance._audit_old = None
         return
-
     try:
-        # Fetch the version currently in the Database
-        old = sender.objects.get(pk=instance.pk)
-        instance._audit_old = old
+        instance._audit_old = sender.objects.get(pk=instance.pk)
     except sender.DoesNotExist:
         instance._audit_old = None
 
-# --- HELPER
-def serialize_value(value):
-    if value is None:
-        return None
 
-    # Handle basic types
-    if isinstance(value, (int, float, bool)):
-        return value
-
-    # Handle Strings & Lazy Strings (e.g. gettext_lazy)
-    if isinstance(value, (str, Promise)):
-        return str(value)
-
-    # Handle Dates (Standard JSON format)
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-
-    # Handle UUIDs
-    if isinstance(value, UUID):
-        return str(value)
-
-    # Handle Decimal (Money)
-    # FIX: Use str() instead of float() to preserve exact precision
-    if isinstance(value, Decimal):
-        return str(value)
-
-    # Handle Foreign Keys / Models
-    if isinstance(value, models.Model):
-        return {
-            "id": value.pk,
-            "repr": str(value)
-        }
-
-    # Fallback for anything else
-    return str(value)
-
-def compute_diff(old, new):
-    diff = {}
-
-    for field in new._meta.fields:
-        name = field.name
-        if name in IGNORED_FIELDS:
-            continue
-
-        old_val = getattr(old, name)
-        new_val = getattr(new, name)
-
-        if old_val != new_val:
-            # FIX: Serialize them before adding to dict
-            diff[name] = {
-                "old": serialize_value(old_val),
-                "new": serialize_value(new_val)
-            }
-
-    return diff
-
-@receiver(post_save, sender=Task)
-def audit_task_change(sender, instance, created, **kwargs):
-    # 🔒 Recursion guard
+def audit_model_change(sender, instance, created, **kwargs):
     if not is_audit_enabled():
         return
 
@@ -106,32 +98,28 @@ def audit_task_change(sender, instance, created, **kwargs):
                 user_agent=meta.get("ua"),
             )
 
-    #  Only log AFTER commit
     def on_commit():
         if created:
             write_log("CREATE")
             return
 
         old = getattr(instance, "_audit_old", None)
-        # If we couldn't fetch the old version, assume Create or Error
-        if not old:
-            return
 
-        # Soft delete
-        if not old.is_deleted and instance.is_deleted:
-            write_log("DELETE")
-            return
+        # Soft Delete Logic
+        if hasattr(instance, 'is_deleted') and hasattr(old, 'is_deleted'):
+            if not old.is_deleted and instance.is_deleted:
+                write_log("DELETE")
+                return
+            if old.is_deleted and not instance.is_deleted:
+                write_log("RESTORE")
+                return
 
-        # Restore
-        if old.is_deleted and not instance.is_deleted:
-            write_log("RESTORE")
-            return
-
-        #  Standard Update
-        diff = compute_diff(old, instance)
-        if diff:
-            write_log("UPDATE", diff)
+        # Update
+        if old:
+            # Ignore password, last_login (handled by login signal), and tech fields
+            ignored = {"password", "last_login", "updated_at", "created_at", "_state"}
+            diff = compute_diff(old, instance, ignored_fields=ignored)
+            if diff:
+                write_log("UPDATE", diff)
 
     transaction.on_commit(on_commit)
-
-
