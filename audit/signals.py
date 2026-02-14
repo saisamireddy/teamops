@@ -60,7 +60,7 @@ def log_login_failed(sender, credentials, request, **kwargs):
             actor=None,
             action="LOGIN_FAILED",
             content_type=None,
-            object_id=None,
+            object_id="0",
             changes={"attempted_username": username},
             ip_address=ip,
             user_agent=ua,

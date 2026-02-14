@@ -52,6 +52,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "bio",
             "date_joined",
             "last_login",
+            "is_active",
         )
         read_only_fields = ("role", "date_joined", "last_login")
 
@@ -82,3 +83,23 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         validate_password(data["new_password"])
         return data
+class AdminUserSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Admins to Manage Users.
+    Allows editing 'role' and 'is_active', unlike the standard profile serializer.
+    """
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "is_active",
+            "avatar",
+            "date_joined",
+            "last_login",
+        )
+        read_only_fields = ("date_joined", "last_login")
