@@ -116,6 +116,22 @@ class AdminUserViewSet(ModelViewSet):
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminUser]
 
+    def perform_update(self, serializer):
+        """
+        Syncs the custom 'role' field with Django's internal 'is_staff' flag.
+        """
+        # 1. Save the new role to the database
+        user = serializer.save()
+
+        # 2. Check the role and update permissions
+        if user.role == 'ADMIN':
+            user.is_staff = True
+
+        else:
+            user.is_staff = False
+
+        user.save()
+
     # 1. SUSPEND USER
     @action(detail=True, methods=['post'])
     def toggle_status(self, request, pk=None):
