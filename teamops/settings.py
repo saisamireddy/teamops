@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
 from datetime import timedelta
+from celery.schedules import crontab
 
 
 load_dotenv()
@@ -162,6 +163,14 @@ CHANNEL_LAYERS = {
     },
 }
 
+
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = "UTC" # Or your TIME_ZONE
+
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
@@ -180,4 +189,11 @@ USE_TZ = True
 STATIC_URL = 'static/'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+CELERY_BEAT_SCHEDULE = {
+    'cleanup-audit-logs-daily': {
+        'task': 'audit.tasks.run_audit_log_cleanup',
+        'schedule': crontab(hour=3, minute=0), # Runs daily at 3:00 AM
+    },
+}
 
