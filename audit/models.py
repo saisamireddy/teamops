@@ -8,6 +8,8 @@ class AuditLog(models.Model):
         ("UPDATE", "Update"),
         ("DELETE", "Delete"),
         ("RESTORE", "Restore"),
+        ("LOGIN", "Login"),
+        ("LOGIN_FAILED", "Login Failed"),
     )
 
     actor = models.ForeignKey(
@@ -18,10 +20,10 @@ class AuditLog(models.Model):
         related_name="audit_logs"
     )
 
-    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
 
     content_type = models.ForeignKey(
-        ContentType, on_delete=models.CASCADE
+        ContentType, on_delete=models.CASCADE, null=True, blank=True
     )
     object_id = models.CharField(max_length=50)
 
@@ -36,9 +38,11 @@ class AuditLog(models.Model):
         indexes = [
             models.Index(fields=["content_type", "object_id"]),
             models.Index(fields=["created_at"]),
+            models.Index(fields=["action"]),
         ]
+        ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.action} {self.content_type}({self.object_id})"
+        return f"{self.action} {self.actor or 'Anon'}({self.created_at})"
 
 

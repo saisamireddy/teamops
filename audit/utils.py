@@ -1,26 +1,77 @@
 import threading
 from contextlib import contextmanager
+from datetime import date, datetime, time
+from decimal import Decimal
+from uuid import UUID
+from django.db import models
+from django.utils.functional import Promise
 
 _thread_locals = threading.local()
 
 
+def set_audit_context(user, meta):
+    _thread_locals.user = user
+    _thread_locals.meta = meta
+
+
+def clear_audit_context():
+    if hasattr(_thread_locals, "user"): del _thread_locals.user
+    if hasattr(_thread_locals, "meta"): del _thread_locals.meta
+
+
+def get_current_user():
+    return getattr(_thread_locals, "user", None)
+
+
+def get_request_meta():
+    return getattr(_thread_locals, "meta", {})
+
+
+_audit_disabled = False
+
+
 def is_audit_enabled():
-    """
-    Returns True if audit logging is enabled for the current thread.
-    Default is enabled.
-    """
-    return getattr(_thread_locals, "audit_enabled", True)
+    return not _audit_disabled
 
 
 @contextmanager
 def disable_audit():
-    """
-    Temporarily disable audit logging within this context.
-    Used to prevent audit recursion.
-    """
-    previous = getattr(_thread_locals, "audit_enabled", True)
-    _thread_locals.audit_enabled = False
+    global _audit_disabled
+    prev = _audit_disabled
+    _audit_disabled = True
     try:
         yield
     finally:
-        _thread_locals.audit_enabled = previous
+        _audit_disabled = prev
+
+
+def serialize_value(value):
+    if value is None: return None
+    if isinstance(value, (int, float, bool)): return value
+    if isinstance(value, (str, Promise)): return str(value)
+    if isinstance(value, (datetime, date, time)): return value.isoformat()
+    if isinstance(value, UUID): return str(value)
+    if isinstance(value, Decimal): return str(value)
+    if isinstance(value, models.Model): return {"id": value.pk, "repr": str(value)}
+    return str(value)
+
+
+def compute_diff(old, new, ignored_fields=None):
+    if ignored_fields is None:
+        ignored_fields = {"updated_at", "created_at", "_state"}
+
+    diff = {}
+    for field in new._meta.fields:
+        name = field.name
+        if name in ignored_fields:
+            continue
+
+        old_val = getattr(old, name, None)
+        new_val = getattr(new, name, None)
+
+        if old_val != new_val:
+            diff[name] = {
+                "old": serialize_value(old_val),
+                "new": serialize_value(new_val)
+            }
+    return diff
