@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: teamops
+resources:
+  - namespace.yaml
+  - postgres-secret.template.yaml
+  - postgres.yaml
+  - redis.yaml
+  - configmap.yaml
+  - secret.template.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - celery-worker-deployment.yaml
+  - celery-beat-deployment.yaml

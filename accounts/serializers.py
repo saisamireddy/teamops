@@ -53,8 +53,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "date_joined",
             "last_login",
             "is_active",
+            "is_staff",
+            "is_superuser",
         )
-        read_only_fields = ("role", "date_joined", "last_login")
+        read_only_fields = ("role", "date_joined", "last_login", "is_staff", "is_superuser")
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
