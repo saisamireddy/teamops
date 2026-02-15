@@ -67,3 +67,66 @@ Upcoming work includes:
 - Fine-grained real-time permissions
 - Activity feeds and live dashboards
 
+---
+
+## Production Setup
+
+### 1. Environment
+Copy `.env.example` to `.env` and set real values:
+- `DEBUG=False`
+- `SECRET_KEY=<strong-random-value>`
+- `ALLOWED_HOSTS=<your-domain>`
+- `CSRF_TRUSTED_ORIGINS=https://<your-domain>`
+- `CORS_ALLOWED_ORIGINS=https://<frontend-domain>`
+- `DATABASE_URL=postgres://...`
+- `REDIS_URL=redis://...`
+
+### 2. Local production-like run with Docker
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+API will be available at `http://localhost:8000`.
+
+### 3. Health check
+
+```bash
+curl http://localhost:8000/healthz/
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+### 4. Recommended edge/proxy requirements
+- Serve traffic over HTTPS.
+- Forward `X-Forwarded-Proto` header.
+- Restrict ingress to required ports only.
+- Keep PostgreSQL/Redis private to the network.
+
+### 5. Kubernetes manifests
+
+Backend Kubernetes manifests are in `deploy/k8s/`:
+- `namespace.yaml`
+- `secret.template.yaml` (fill values and apply as `backend-secrets`)
+- `configmap.yaml`
+- `backend-deployment.yaml` (Django via Gunicorn)
+- `backend-service.yaml` (service name: `backend-service`)
+- `celery-worker-deployment.yaml`
+- `celery-beat-deployment.yaml`
+
+Apply order:
+
+```bash
+kubectl apply -f deploy/k8s/namespace.yaml
+kubectl apply -f deploy/k8s/secret.template.yaml
+kubectl apply -f deploy/k8s/configmap.yaml
+kubectl apply -f deploy/k8s/backend-deployment.yaml
+kubectl apply -f deploy/k8s/backend-service.yaml
+kubectl apply -f deploy/k8s/celery-worker-deployment.yaml
+kubectl apply -f deploy/k8s/celery-beat-deployment.yaml
+```
+
