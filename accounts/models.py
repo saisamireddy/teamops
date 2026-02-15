@@ -20,6 +20,9 @@ class User(AbstractUser):
         related_name="invited_users",
     )
     invited_at = models.DateTimeField(null=True, blank=True)
+    invite_token_hash = models.CharField(max_length=64, null=True, blank=True)
+    invite_expires_at = models.DateTimeField(null=True, blank=True)
+    invite_accepted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "User"

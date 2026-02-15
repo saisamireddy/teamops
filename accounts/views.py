@@ -1,6 +1,7 @@
-from django.shortcuts import render
 from django.contrib.auth import get_user_model
 from django.contrib.auth import user_logged_in
+from django.utils import timezone
+import hashlib
 
 # REST Framework imports
 from rest_framework.viewsets import ReadOnlyModelViewSet, ModelViewSet
@@ -19,7 +20,11 @@ from .serializers import (
     RegisterSerializer,
     UserProfileSerializer,
     UpdateProfileSerializer,
-    ChangePasswordSerializer, AdminUserSerializer, AdminInviteUserSerializer,
+    ChangePasswordSerializer,
+    AdminUserSerializer,
+    AdminInviteUserSerializer,
+    InviteAcceptSerializer,
+    InvitePreviewSerializer,
 )
 
 User = get_user_model()
@@ -158,7 +163,33 @@ class AdminUserViewSet(ModelViewSet):
             return Response({"error": "Password is required"}, status=400)
 
         user.set_password(new_password)
-        user.save()
-
+        user.invite_token_hash = None
+        user.invite_expires_at = None
+        user.invite_accepted_at = timezone.now()
+        user.save(update_fields=["password", "invite_token_hash", "invite_expires_at", "invite_accepted_at"])
 
         return Response({"status": "success", "message": "Password has been reset."})
+
+
+class InviteAcceptanceView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        token = request.query_params.get("token", "").strip()
+        if not token:
+            return Response({"detail": "Invitation token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        user = User.objects.filter(invite_token_hash=token_hash).first()
+        if not user or user.invite_accepted_at:
+            return Response({"detail": "Invitation is invalid or already used."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.invite_expires_at and user.invite_expires_at < timezone.now():
+            return Response({"detail": "Invitation has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(InvitePreviewSerializer(user).data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = InviteAcceptSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"detail": "Invitation accepted. You can now sign in."}, status=status.HTTP_200_OK)
