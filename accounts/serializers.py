@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.utils.crypto import get_random_string
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -103,5 +105,75 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "avatar",
             "date_joined",
             "last_login",
+            "invited_by",
+            "invited_at",
         )
-        read_only_fields = ("date_joined", "last_login")
+        read_only_fields = ("username", "date_joined", "last_login", "invited_by", "invited_at")
+
+
+class AdminInviteUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "role",
+            "is_active",
+            "avatar",
+            "date_joined",
+            "last_login",
+            "invited_by",
+            "invited_at",
+        )
+        read_only_fields = (
+            "id",
+            "username",
+            "is_active",
+            "avatar",
+            "date_joined",
+            "last_login",
+            "invited_by",
+            "invited_at",
+        )
+        extra_kwargs = {
+            "first_name": {"required": True},
+            "last_name": {"required": True},
+            "email": {"required": True},
+            "role": {"required": True},
+        }
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return email
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        inviter = request.user
+        email = validated_data["email"]
+
+        base_username = email.split("@")[0].strip().lower() or "user"
+        username = base_username
+        suffix = 1
+        while User.objects.filter(username=username).exists():
+            suffix += 1
+            username = f"{base_username}{suffix}"
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            first_name=validated_data["first_name"].strip(),
+            last_name=validated_data["last_name"].strip(),
+            role=validated_data["role"],
+            password=get_random_string(length=20),
+        )
+
+        user.invited_by = inviter
+        user.invited_at = timezone.now()
+        user.is_staff = user.role == "ADMIN"
+        user.save(update_fields=["invited_by", "invited_at", "is_staff"])
+        return user

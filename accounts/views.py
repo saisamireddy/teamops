@@ -19,7 +19,7 @@ from .serializers import (
     RegisterSerializer,
     UserProfileSerializer,
     UpdateProfileSerializer,
-    ChangePasswordSerializer, AdminUserSerializer,
+    ChangePasswordSerializer, AdminUserSerializer, AdminInviteUserSerializer,
 )
 
 User = get_user_model()
@@ -116,6 +116,11 @@ class AdminUserViewSet(ModelViewSet):
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminUser]
 
+    def get_serializer_class(self):
+        if self.action == "create":
+            return AdminInviteUserSerializer
+        return AdminUserSerializer
+
     def perform_update(self, serializer):
         """
         Syncs the custom 'role' field with Django's internal 'is_staff' flag.
@@ -141,7 +146,7 @@ class AdminUserViewSet(ModelViewSet):
 
         user.is_active = not user.is_active
         user.save()
-        return Response({"status": "success", "is_active": user.is_active})
+        return Response(AdminUserSerializer(user).data, status=status.HTTP_200_OK)
 
     # 2. RESET PASSWORD
     @action(detail=True, methods=['post'])
