@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: teamops
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: teamops-api:latest
+          imagePullPolicy: Never
+          command:
+            - sh
+            - -c
+            - >
+              python manage.py migrate --noinput &&
+              python manage.py collectstatic --noinput &&
+              gunicorn teamops.asgi:application
+              -k uvicorn.workers.UvicornWorker
+              --bind 0.0.0.0:8000
+              --workers 3
+              --timeout 120
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: backend-secrets
+          readinessProbe:
+            httpGet:
+              path: /healthz/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: backend-service.teamops.svc.cluster.local
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz/
+              port: 8000
+              httpHeaders:
+                - name: Host
+                  value: backend-service.teamops.svc.cluster.local
+            initialDelaySeconds: 25
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
